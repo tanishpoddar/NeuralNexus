@@ -132,8 +132,4 @@ Edit `intents.json` to add new conversation patterns and responses:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-Made with ♥ by [Tanish Poddar](https://github.com/tanish-poddar)
+This project is licensed under the GNU General Public License v3.O License - see the [LICENSE](LICENSE) file for details.
