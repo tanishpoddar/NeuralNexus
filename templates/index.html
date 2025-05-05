@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuralNexus - AI Chatbot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #0f2027, #2c5364 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 700px;
+            margin: 40px auto 0 auto;
+            padding: 0 20px 20px 20px;
+        }
+        .chat-container {
+            background: rgba(30, 34, 90, 0.85);
+            border-radius: 24px;
+            padding: 32px 24px 24px 24px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            border: 1.5px solid rgba(255, 255, 255, 0.18);
+        }
+        .chat-header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-bottom: 18px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+        }
+        .neuralnexus-logo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .neuralnexus-logo svg {
+            width: 56px;
+            height: 56px;
+            margin-right: 10px;
+        }
+        .chat-header h1 {
+            margin: 0;
+            font-family: 'Orbitron', 'Roboto', sans-serif;
+            font-size: 2.7em;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #00dbde 0%, #fc00ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 18px rgba(0, 219, 222, 0.25);
+        }
+        .chat-header p {
+            margin: 10px 0 0;
+            color: #b0b8d1;
+            font-size: 1.15em;
+            font-family: 'Roboto', sans-serif;
+        }
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 18px 10px;
+            background: rgba(0, 0, 0, 0.18);
+            border-radius: 12px;
+            margin-bottom: 22px;
+        }
+        .message {
+            margin-bottom: 18px;
+            padding: 13px 18px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in-out;
+            font-size: 1.08em;
+        }
+        .user-message {
+            background: linear-gradient(90deg, #00dbde 0%, #fc00ff 100%);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 7px;
+            font-weight: 500;
+        }
+        .bot-message {
+            background: rgba(255, 255, 255, 0.13);
+            color: #fff;
+            margin-right: auto;
+            border-bottom-left-radius: 7px;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 13px 18px;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.13);
+            color: #fff;
+            font-size: 1.08em;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        input[type="text"]:focus {
+            background: rgba(255, 255, 255, 0.18);
+            box-shadow: 0 0 15px rgba(0, 219, 222, 0.18);
+        }
+        input[type="text"]::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        button {
+            padding: 13px 28px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(90deg, #00dbde 0%, #fc00ff 100%);
+            color: white;
+            font-size: 1.08em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px) scale(1.04);
+            box-shadow: 0 5px 18px rgba(0, 219, 222, 0.25);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .typing-indicator {
+            display: none;
+            padding: 13px 18px;
+            background: rgba(255, 255, 255, 0.13);
+            border-radius: 18px;
+            margin-bottom: 18px;
+            width: fit-content;
+            border-bottom-left-radius: 7px;
+        }
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background: #fff;
+            display: inline-block;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: typing 1s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #b0b8d1;
+            font-size: 1em;
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .footer a {
+            color: #00dbde;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .footer a:hover {
+            color: #fc00ff;
+            text-decoration: underline;
+        }
+        .footer .github-logo {
+            display: inline-block;
+            vertical-align: middle;
+            width: 22px;
+            height: 22px;
+        }
+        .footer .heart {
+            color: #fc00ff;
+            font-size: 1.1em;
+            vertical-align: middle;
+            margin: 0 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="neuralnexus-logo">
+                    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="32" cy="32" r="30" stroke="#00dbde" stroke-width="4" fill="#1a1a2e"/>
+                        <ellipse cx="32" cy="32" rx="18" ry="8" fill="#fc00ff" fill-opacity="0.18"/>
+                        <ellipse cx="32" cy="32" rx="8" ry="18" fill="#00dbde" fill-opacity="0.18"/>
+                        <circle cx="32" cy="32" r="8" fill="#fc00ff" fill-opacity="0.7"/>
+                        <circle cx="32" cy="32" r="4" fill="#00dbde"/>
+                    </svg>
+                    <span style="font-family: 'Orbitron', 'Roboto', sans-serif; font-size: 1.5em; letter-spacing: 1px; background: linear-gradient(90deg, #00dbde 0%, #fc00ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">NeuralNexus</span>
+                </div>
+                <h1>NeuralNexus</h1>
+                <p>Your AI Companion Powered by Neural Networks</p>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="message bot-message">
+                    Hello! I'm <b>NeuralNexus</b>, your AI companion. How can I assist you today?
+                </div>
+            </div>
+            <div class="typing-indicator" id="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="input-container">
+                <input type="text" id="user-input" placeholder="Type your message here..." autocomplete="off">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+        <div class="footer">
+            <span>&copy; <span id="year"></span></span>
+            <a href="https://github.com/Tanish-Poddar/AI-ChatBot" target="_blank" rel="noopener" title="GitHub Repository" class="github-logo">
+                <svg height="22" width="22" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+            </a>
+            <span>|</span>
+            <span>Made with <span class="heart">♥</span> by <a href="https://tanishpoddar.com" target="_blank" rel="noopener">tanish poddar</a></span>
+        </div>
+    </div>
+    <script>
+        // Set current year in footer
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const typingIndicator = document.getElementById('typing-indicator');
+
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === '') return;
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            userInput.value = '';
+
+            // Show typing indicator
+            typingIndicator.style.display = 'block';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Send message to server
+            fetch('/get_response', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide typing indicator
+                typingIndicator.style.display = 'none';
+                // Add bot response to chat
+                addMessage(data.response, 'bot');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                typingIndicator.style.display = 'none';
+                addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+            });
+        }
+
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+            messageDiv.innerHTML = text;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    </script>
+</body>
+</html> 
