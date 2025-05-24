@@ -26,7 +26,7 @@ NN_CONFIDENCE_THRESHOLD_LOW = float(os.getenv('NN_CONFIDENCE_THRESHOLD_LOW', '0.
 
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = 'your-secret-key'  # Required for session management
+app.config['SECRET_KEY'] = 'your_secret_key_here'  # Required for session management - REPLACE THIS!
 
 # Load intents
 with open("intents.json") as file:
@@ -102,26 +102,21 @@ def bag_of_words(s, words):
                 bag[i] = 1
     return np.array(bag)
 
-# Load Gemini API key from environment variables
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
-if not GEMINI_API_KEY:
-    print("Error: GEMINI_API_KEY environment variable not set.")
-    # In a production environment, you might want to raise an exception or handle this more gracefully
-
 # Configure Gemini API
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY, transport='rest') # Explicitly set transport for better compatibility
-    genai.configure(api_key=GEMINI_API_KEY)
 
 def format_history_for_gemini(history):
-    """Formats the conversation history into a list of messages with roles for Gemini API."""
-    formatted_history = []
     for entry in history:
         formatted_history.append({'role': 'user', 'parts': [entry['user_input']]})
         formatted_history.append({'role': 'model', 'parts': [entry['bot_response']]})
     return formatted_history
 
 def get_gemini_response(user_input, context):
+    # Load Gemini API key from environment variables within the function
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+    if GEMINI_API_KEY:
+        genai.configure(api_key=GEMINI_API_KEY, transport='rest')
     if not GEMINI_API_KEY:
         return "I'm currently unable to connect to my external knowledge base. Please try again later."
     model = genai.GenerativeModel(model_name="gemini-pro", system_instruction="You are NeuralNexus, an AI chatbot powered by neural networks and natural language processing. You're intelligent, helpful, and slightly technical in your responses. You enjoy discussing AI concepts and maintain a friendly, professional tone. Keep responses conversational and not too long.")
@@ -139,10 +134,14 @@ def get_gemini_response(user_input, context):
         return "I'm currently experiencing some difficulties. Could you please rephrase or try again later."
 
 # New function for post-processing responses
-def postprocess_response(response_text, source):
+def postprocess_response(response_text, source, user_name=None):
     """Applies formatting and ensures consistent personality."""
     # Simple example: Add a prefix based on the source
     # You can expand this later with more sophisticated logic
+
+    if user_name:
+        # Example of using the user's name (you can customize this)
+        pass # Add logic here to incorporate the user_name
     if source == 'neural_network':
         return "I'm currently experiencing some difficulties. Could you please rephrase or try again later?"
 
@@ -153,10 +152,14 @@ def get_verified_response(user_input, nn_response, context):
     Includes error handling for Gemini API calls.
     """
     if not GEMINI_API_KEY:
+        # Load Gemini API key from environment variables within the function
+        GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+        if GEMINI_API_KEY:
+            genai.configure(api_key=GEMINI_API_KEY, transport='rest')
         return nn_response # Fallback if API key is not set
 
     try:
-        model = genai.GenerativeModel(model_name="gemini-pro", system_instruction="You are NeuralNexus, an AI chatbot powered by neural networks and natural language processing. You're intelligent, helpful, and slightly technical in your responses. You enjoy discussing AI concepts and maintain a friendly, professional tone. You have received a potential response from another system based on user input, and your task is to verify its relevance or provide a better response if needed. Keep responses conversational and not too long.", api_version='v1') # Specify API version
+        model = genai.GenerativeModel(model_name="gemini-pro", system_instruction="You are NeuralNexus, an AI chatbot powered by neural networks and natural language processing. You're intelligent, helpful, and slightly technical in your responses. You enjoy discussing AI concepts and maintain a friendly, professional tone. You have received a potential response from another system based on user input, and your task is to verify its relevance or provide a better response if needed. Keep responses conversational and not too long.")
         
         conversation = model.start_chat(history=[])
         # No need to explicitly add context here, the prompt guides Gemini
@@ -167,8 +170,6 @@ def get_verified_response(user_input, nn_response, context):
         current_app.logger.error(f"Gemini verification failed: {e}")
         # In a production environment, you might want to return a more informative message
         return nn_response # Fallback to NN response if Gemini verification fails
-
-
 
 
 def get_context_aware_response(user_input, context):
@@ -191,11 +192,13 @@ def get_context_aware_response(user_input, context):
                 # Medium confidence: Use neural network result + Gemini verification
                 nn_response = random.choice(tg['responses'])
                 raw_response = get_verified_response(user_input, nn_response, context)
-                return postprocess_response(raw_response, 'gemini_verified'), tag # Indicate it was Gemini-verified
+                # Pass user_name to postprocess_response - you'll need to retrieve it in the calling function
+                return raw_response, tag # Indicate it was Gemini-verified - postprocessing happens later
     else:
         # Low confidence: Use pure Gemini API response
         raw_response = get_gemini_response(user_input, context)
-        return postprocess_response(raw_response, 'gemini'), None # Indicate it was a pure Gemini response
+        # Pass user_name to postprocess_response - you'll need to retrieve it in the calling function
+        return raw_response, None # Indicate it was a pure Gemini response
 
 @app.route('/')
 def index():
@@ -208,9 +211,22 @@ def index():
 
 @app.route('/get_response', methods=['POST'])
 def get_response():
-    data = request.get_json()
-    user_input = data.get('message', '').strip()
+    if 'user_name' not in session:
+        user_input = request.json.get('message', '').strip()
+        if user_input:
+            # Assuming the first input when 'user_name' is not in session is the name
+            session['user_name'] = user_input
+            # Save the session immediately
+            session.modified = True
+            return jsonify({"response": f"Nice to meet you, {user_input}! How can I help you today?"})
+        else:
+            # If no input is received on the first message
+            return jsonify({"response": "Hello! What should I call you?"})
+
+    # If 'user_name' is in session, proceed with the rest of your logic
+    user_input = request.json.get('message', '').strip()
     
+    # Retrieve user_name for personalized responses
     response, tag = get_context_aware_response(user_input, session.get('current_context', ''))
     
     # Update context based on the current interaction
@@ -219,6 +235,9 @@ def get_response():
     else:
         session['current_context'] = ""
     
+    # Post-process the response, including the user's name
+    processed_response = postprocess_response(response, 'unknown_source', user_name=session.get('user_name')) # Pass user_name here
+
     # Add to conversation history
     conversation_entry = {
         'user_input': user_input,
@@ -238,7 +257,7 @@ def get_response():
     # Save the session
     session.modified = True
     
-    return jsonify({'response': response})
+    return jsonify({'response': processed_response})
 
 if __name__ == '__main__':
     app.run(debug=True)
