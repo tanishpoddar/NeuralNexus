@@ -1,6 +1,6 @@
-tensorflow==2.15.0
-numpy==1.24.3
+numpy==1.23.5
 nltk==3.8.1
 flask==3.0.0
 python-dotenv==1.0.0
 google-generativeai
+tensorflow==2.10.0
