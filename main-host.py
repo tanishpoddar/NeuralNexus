@@ -110,6 +110,7 @@ if not GEMINI_API_KEY:
 
 # Configure Gemini API
 if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY, transport='rest') # Explicitly set transport for better compatibility
     genai.configure(api_key=GEMINI_API_KEY)
 
 def format_history_for_gemini(history):
@@ -124,7 +125,7 @@ def get_gemini_response(user_input, context):
     if not GEMINI_API_KEY:
         return "I'm currently unable to connect to my external knowledge base. Please try again later."
     model = genai.GenerativeModel(model_name="gemini-pro", system_instruction="You are NeuralNexus, an AI chatbot powered by neural networks and natural language processing. You're intelligent, helpful, and slightly technical in your responses. You enjoy discussing AI concepts and maintain a friendly, professional tone. Keep responses conversational and not too long.")
-    conversation = model.start_chat(history=[])
+    conversation = model.start_chat(history=format_history_for_gemini(context)) # Pass formatted context as history
     # Optionally, add context to the history for Gemini
     if context:
         conversation.send_message(f"Previous context: {context}")
@@ -155,7 +156,7 @@ def get_verified_response(user_input, nn_response, context):
         return nn_response # Fallback if API key is not set
 
     try:
-        model = genai.GenerativeModel(model_name="gemini-pro", system_instruction="You are NeuralNexus, an AI chatbot powered by neural networks and natural language processing. You're intelligent, helpful, and slightly technical in your responses. You enjoy discussing AI concepts and maintain a friendly, professional tone. You have received a potential response from another system based on user input, and your task is to verify its relevance or provide a better response if needed. Keep responses conversational and not too long.")
+        model = genai.GenerativeModel(model_name="gemini-pro", system_instruction="You are NeuralNexus, an AI chatbot powered by neural networks and natural language processing. You're intelligent, helpful, and slightly technical in your responses. You enjoy discussing AI concepts and maintain a friendly, professional tone. You have received a potential response from another system based on user input, and your task is to verify its relevance or provide a better response if needed. Keep responses conversational and not too long.", api_version='v1') # Specify API version
         
         conversation = model.start_chat(history=[])
         # No need to explicitly add context here, the prompt guides Gemini
