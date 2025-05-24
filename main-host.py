@@ -1,4 +1,6 @@
 import nltk, os
+from dotenv import load_dotenv
+load_dotenv() # Load environment variables from .env file
 nltk.download('punkt')
 
 from nltk import word_tokenize,sent_tokenize
@@ -17,6 +19,10 @@ from flask import Flask, render_template, request, session, jsonify, current_app
 import google.generativeai as genai
 
 import os
+
+# Configure confidence thresholds from environment variables
+NN_CONFIDENCE_THRESHOLD_HIGH = float(os.getenv('NN_CONFIDENCE_THRESHOLD_HIGH', '0.7'))
+NN_CONFIDENCE_THRESHOLD_LOW = float(os.getenv('NN_CONFIDENCE_THRESHOLD_LOW', '0.4'))
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -129,6 +135,14 @@ def get_gemini_response(user_input, context):
     except Exception as e:
         current_app.logger.error(f"Gemini API call failed in get_gemini_response: {e}")
         # Fallback: a generic error message or a simple NN response if possible
+        return "I'm currently experiencing some difficulties. Could you please rephrase or try again later."
+
+# New function for post-processing responses
+def postprocess_response(response_text, source):
+    """Applies formatting and ensures consistent personality."""
+    # Simple example: Add a prefix based on the source
+    # You can expand this later with more sophisticated logic
+    if source == 'neural_network':
         return "I'm currently experiencing some difficulties. Could you please rephrase or try again later?"
 
 # New function for Gemini verification/enhancement
@@ -165,15 +179,22 @@ def get_context_aware_response(user_input, context):
     result_index = np.argmax(result)
     tag = labels[result_index]
 
-    if result[result_index] > 0.5:
+    if result[result_index] > NN_CONFIDENCE_THRESHOLD_LOW: # Use the lower threshold for initial check
         for tg in data["intents"]:
-            if tg['tag'] == tag and result[result_index] > 0.7:
+            if tg['tag'] == tag and result[result_index] > NN_CONFIDENCE_THRESHOLD_HIGH:
+                # High confidence: Use pure neural network response
                 responses = tg['responses']
-                return random.choice(responses), tag
-            elif tg['tag'] == tag and result[result_index] >= 0.4 and result[result_index] <= 0.7:
-                 return get_verified_response(user_input, random.choice(tg['responses']), context), tag
+                raw_response = random.choice(responses)
+                return postprocess_response(raw_response, 'neural_network'), tag
+            elif tg['tag'] == tag and result[result_index] >= NN_CONFIDENCE_THRESHOLD_LOW and result[result_index] <= NN_CONFIDENCE_THRESHOLD_HIGH:
+                # Medium confidence: Use neural network result + Gemini verification
+                nn_response = random.choice(tg['responses'])
+                raw_response = get_verified_response(user_input, nn_response, context)
+                return postprocess_response(raw_response, 'gemini_verified'), tag # Indicate it was Gemini-verified
     else:
-        return get_gemini_response(user_input, context), None
+        # Low confidence: Use pure Gemini API response
+        raw_response = get_gemini_response(user_input, context)
+        return postprocess_response(raw_response, 'gemini'), None # Indicate it was a pure Gemini response
 
 @app.route('/')
 def index():
