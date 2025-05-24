@@ -13,7 +13,9 @@ import random
 import json
 import pickle
 from datetime import datetime
-from flask import Flask, render_template, request, session, jsonify
+from flask import Flask, render_template, request, session, jsonify, current_app
+import google.generativeai as genai
+
 import os
 
 # Initialize Flask app
@@ -94,21 +96,84 @@ def bag_of_words(s, words):
                 bag[i] = 1
     return np.array(bag)
 
+# Load Gemini API key from environment variables
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+if not GEMINI_API_KEY:
+    print("Error: GEMINI_API_KEY environment variable not set.")
+    # In a production environment, you might want to raise an exception or handle this more gracefully
+
+# Configure Gemini API
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+
+def format_history_for_gemini(history):
+    """Formats the conversation history into a list of messages with roles for Gemini API."""
+    formatted_history = []
+    for entry in history:
+        formatted_history.append({'role': 'user', 'parts': [entry['user_input']]})
+        formatted_history.append({'role': 'model', 'parts': [entry['bot_response']]})
+    return formatted_history
+
+def get_gemini_response(user_input, context):
+    if not GEMINI_API_KEY:
+        return "I'm currently unable to connect to my external knowledge base. Please try again later."
+    model = genai.GenerativeModel(model_name="gemini-pro", system_instruction="You are NeuralNexus, an AI chatbot powered by neural networks and natural language processing. You're intelligent, helpful, and slightly technical in your responses. You enjoy discussing AI concepts and maintain a friendly, professional tone. Keep responses conversational and not too long.")
+    conversation = model.start_chat(history=[])
+    # Optionally, add context to the history for Gemini
+    if context:
+        conversation.send_message(f"Previous context: {context}")
+
+    try:
+        response = conversation.send_message(user_input)
+        return response.text
+    except Exception as e:
+        current_app.logger.error(f"Gemini API call failed in get_gemini_response: {e}")
+        # Fallback: a generic error message or a simple NN response if possible
+        return "I'm currently experiencing some difficulties. Could you please rephrase or try again later?"
+
+# New function for Gemini verification/enhancement
+def get_verified_response(user_input, nn_response, context):
+    """
+    Uses Gemini to verify or enhance the neural network response.
+    Includes error handling for Gemini API calls.
+    """
+    if not GEMINI_API_KEY:
+        return nn_response # Fallback if API key is not set
+
+    try:
+        model = genai.GenerativeModel(model_name="gemini-pro", system_instruction="You are NeuralNexus, an AI chatbot powered by neural networks and natural language processing. You're intelligent, helpful, and slightly technical in your responses. You enjoy discussing AI concepts and maintain a friendly, professional tone. You have received a potential response from another system based on user input, and your task is to verify its relevance or provide a better response if needed. Keep responses conversational and not too long.")
+        
+        conversation = model.start_chat(history=[])
+        # No need to explicitly add context here, the prompt guides Gemini
+
+        verification_response = conversation.send_message(f"User input: {user_input}\nPotential previous response: {nn_response}\nPlease refine or provide a response.")
+        return verification_response.text
+    except Exception as e:
+        current_app.logger.error(f"Gemini verification failed: {e}")
+        # In a production environment, you might want to return a more informative message
+        return nn_response # Fallback to NN response if Gemini verification fails
+
+
+
+
 def get_context_aware_response(user_input, context):
-    # Add context to the input
-    context_input = f"{context} {user_input}" if context else user_input
+    # We use the user input directly for NN prediction as it's trained on patterns,
+    # context is used to potentially influence the response selection or Gemini call later
+    context_input = user_input
     
     result = model.predict(np.array([bag_of_words(context_input, words)]))[0]
     result_index = np.argmax(result)
     tag = labels[result_index]
 
-    if result[result_index] > 0.7:
+    if result[result_index] > 0.5:
         for tg in data["intents"]:
-            if tg['tag'] == tag:
+            if tg['tag'] == tag and result[result_index] > 0.7:
                 responses = tg['responses']
-        return random.choice(responses), tag
+                return random.choice(responses), tag
+            elif tg['tag'] == tag and result[result_index] >= 0.4 and result[result_index] <= 0.7:
+                 return get_verified_response(user_input, random.choice(tg['responses']), context), tag
     else:
-        return "I didnt get that. Can you explain or try again.", None
+        return get_gemini_response(user_input, context), None
 
 @app.route('/')
 def index():
@@ -124,7 +189,6 @@ def get_response():
     data = request.get_json()
     user_input = data.get('message', '').strip()
     
-    # Get response with context
     response, tag = get_context_aware_response(user_input, session.get('current_context', ''))
     
     # Update context based on the current interaction

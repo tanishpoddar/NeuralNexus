@@ -68,6 +68,26 @@
      "patterns": ["i dont understand", "what do you mean", "can you explain", "im confused", "what does that mean", "I dont understand", "What do you mean", "Can you explain", "Im confused", "What does that mean"],
      "responses": ["I'm NeuralNexus, and I'll try to explain that differently. Let me clarify...", "Let me rephrase that in a clearer way...", "I'll try to be more specific...", "Let me break that down for you..."],
      "context_set": ""
-    }
+    },
+    {
+        "tag": "general_query",
+        "patterns": [
+          "What is AI?",
+          "Tell me about machine learning",
+          "How does a neural network work?",
+          "What can you do?",
+          "Tell me a joke",
+          "What's the weather like?",
+          "Can you help me with something?",
+          "I have a question",
+          "Tell me about yourself"
+        ],
+        "responses": [
+          "I can help you with a variety of topics related to AI and natural language processing.",
+          "I'm a large language model, trained by Google.",
+          "I'm still under development, but I'm learning new things every day.",
+          "What would you like to know?"
+        ]
+      }
 ]
 }
